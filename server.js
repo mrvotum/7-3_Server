@@ -1,19 +1,25 @@
-const http = require('http');
 const Koa = require('koa');
 const koaBody = require('koa-body');
-const path = require('path');
-const fs = require('fs');
 const uuid = require('uuid');
 const koaStatic = require('koa-static');
+const http = require('http'); // Чтобы использовать HTTP-интерфейсы в Node.js
+const fs = require('fs'); // Для взаимодействия с файловой системой
+const path = require('path'); // Для работы с путями файлов и каталогов
+const Router = require('koa-router');
 
 const app = new Koa();
 const public = path.join(__dirname, '/public');
+let imagesArr = [];
+const imagesArrDel = [];
 
+const filesFolder = './public';
 
 app.use(
   koaBody({
-  urlencoded: true,
-  multipart: true,
+    text: true,
+    urlencoded: true,
+    multipart: true,
+    json: true,
   })
 );
 
@@ -53,6 +59,28 @@ app.use(async (ctx, next) => {
   }
 });
 
+const router = new Router();
+
+router.get('/imagesArr', async (ctx, next) => {
+  imagesArr = [];
+  fs.readdirSync(filesFolder).forEach(file => {
+    imagesArr.push({id: uuid.v4(), name: file});
+  });
+  ctx.response.body = imagesArr;
+});
+
+router.delete('/imagesArr/:id', async (ctx, next) => {
+  // имя удаляемого файла
+  const index = ctx.originalUrl.split("/").pop();
+
+  const filePath = `./public/${index}`; 
+  fs.unlinkSync(filePath);
+
+  ctx.response.status = 204;
+});
+
+app.use(router.routes()).use(router.allowedMethods());
+http.createServer(app.callback()).listen(process.env.PORT || 7075);
 app.use(koaStatic(public));
 
 app.use(async ctx => {
@@ -82,7 +110,15 @@ app.use(async ctx => {
   });
 
   ctx.response.body = link;
+
+  // fs.readdirSync(filesFolder).forEach(file => {
+  //   imagesArr.push({id: uuid.v4(), name: file});
+  //   // console.log(file);
+  // });
+
+  // ctx.response.body = imagesArr;
+  // console.log(imagesArr);
 });
 
-const port = process.env.PORT || 7075;
-const server = http.createServer(app.callback()).listen(port);
+// const port = process.env.PORT || 7075;
+// const server = http.createServer(app.callback()).listen(port);
